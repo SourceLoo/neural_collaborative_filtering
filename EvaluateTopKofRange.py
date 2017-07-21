@@ -1,3 +1,5 @@
+# -*- coding: utf-8 -*-
+
 import numpy as np
 
 import theano
@@ -15,7 +17,9 @@ from time import time
 import sys
 import NeuMF
 
-model_file = "Pretrain/ml-1m_NeuMF_64_neg_4_hr_0.7301_ndcg_0.4465.h5"
+# 这个py暂时没有被调用
+
+model_file = "Pretrain/ml-1m_NeuMF_64_neg_4_hr_0.7301_ndcg_0.4465.h5"  # model file在哪里？？？
 dataset_name = "ml-1m"
 mf_dim = 64
 layers = [512,256,128,64]

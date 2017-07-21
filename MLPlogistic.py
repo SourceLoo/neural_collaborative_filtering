@@ -1,3 +1,5 @@
+# -*- coding: utf-8 -*-
+
 '''
 Created on Aug 9, 2016
 Logistic loss for learning MLP model.

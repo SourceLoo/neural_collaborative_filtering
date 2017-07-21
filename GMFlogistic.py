@@ -1,3 +1,5 @@
+# -*- coding: utf-8 -*-
+
 '''
 Created on Aug 9, 2016
 
@@ -7,7 +9,11 @@ import numpy as np
 import theano.tensor as T
 import keras
 from keras import backend as K
+
 from keras import initializations
+# import keras.initializers as initializations  # In Keras 2.0, initializations was renamed as initializers
+
+
 from keras.models import Sequential, Model, load_model, save_model
 from keras.layers.core import Dense, Lambda, Activation
 from keras.layers import Embedding, Input, Dense, merge, Reshape, Merge, Flatten
@@ -26,21 +32,26 @@ def init_normal(shape, name=None):
 def get_model(num_users, num_items, latent_dim, regs=[0,0]):
     assert len(regs) == 2       # regularization for user and item, respectively
     # Input variables
+
+    # input 层
     user_input = Input(shape=(1,), dtype='int32', name = 'user_input')
     item_input = Input(shape=(1,), dtype='int32', name = 'item_input')
 
+    # embedding层
     MF_Embedding_User = Embedding(input_dim = num_users, output_dim = latent_dim, name = 'user_embedding',
                                   init = init_normal, W_regularizer = l2(regs[0]), input_length=1)
     MF_Embedding_Item = Embedding(input_dim = num_items, output_dim = latent_dim, name = 'item_embedding',
                                   init = init_normal, W_regularizer = l2(regs[1]), input_length=1)   
-    
+
     # Crucial to flatten an embedding vector!
     user_latent = Flatten()(MF_Embedding_User(user_input))
     item_latent = Flatten()(MF_Embedding_Item(item_input))
-    
+
+    # 点积得到predict_vector
     # Element-wise product of user and item embeddings 
     predict_vector = merge([user_latent, item_latent], mode = 'mul')
-    
+
+    # 最后一层 预测层，默认都是full-connect???
     # Final prediction layer
     #prediction = Lambda(lambda x: K.sigmoid(K.sum(x)), output_shape=(1,))(predict_vector)
     prediction = Dense(1, activation='sigmoid', init='lecun_uniform', name = 'prediction')(predict_vector)
@@ -53,29 +64,35 @@ def get_model(num_users, num_items, latent_dim, regs=[0,0]):
 def get_train_instances(train, num_negatives, weight_negatives, user_weights):
     user_input, item_input, labels, weights = [],[],[],[]
     num_users = train.shape[0]
+
+    # 1个positive 对应1个negative，每个instance的权重都是一致的
     for (u, i) in train.keys():
         # positive instance
         user_input.append(u)
         item_input.append(i)
         labels.append(1)
         weights.append(user_weights[u])
+
         # negative instances
         for t in xrange(num_negatives):
-            j = np.random.randint(num_items)
+            j = np.random.randint(num_items)  # 在[0, 3706)之间随机选一个整数
             while train.has_key((u, j)):
                 j = np.random.randint(num_items)
             user_input.append(u)
             item_input.append(j)
             labels.append(0)
             weights.append(weight_negatives * user_weights[u])
+
+    # 最后instance有2m个
     return user_input, item_input, labels, weights
 
 if __name__ == '__main__':
     dataset_name = "ml-1m"
-    num_factors = 10
-    regs = [0,0]
-    num_negatives = 1
-    weight_negatives = 1
+    num_factors = 10  # 隐空间的向量维数，embedding的向量维数
+
+    regs = [0,0]  # user 与 item的惩罚系数
+    num_negatives = 1  # 一个positive对应几个negative
+    weight_negatives = 1  # 负样本(u, i)的权重
     learner = "Adam"
     learning_rate = 0.001
     epochs = 100
@@ -104,14 +121,19 @@ if __name__ == '__main__':
     dataset = Dataset("Data/"+dataset_name)
     train, testRatings, testNegatives = dataset.trainMatrix, dataset.testRatings, dataset.testNegatives
     num_users, num_items = train.shape
-    total_weight_per_user = train.nnz / float(num_users)
-    train_csr, user_weights = train.tocsr(), []
+    total_weight_per_user = train.nnz / float(num_users)  # 每个user平均rate的items数目
+
+    train_csr, user_weights = train.tocsr(), []  # 将dok形式转为csr形式
+
+    # 每个user weight均为1
     for u in xrange(num_users):
         user_weights.append(1)
+
     print("Load data done [%.1f s]. #user=%d, #item=%d, #train=%d, #test=%d" 
           %(time()-t1, num_users, num_items, train.nnz, len(testRatings)))
     
     # Build model
+    # loss都是用log loss，不同的是优化方法learner
     model = get_model(num_users, num_items, num_factors, regs)
     if learner.lower() == "adagrad": 
         model.compile(optimizer=Adagrad(lr=learning_rate), loss='binary_crossentropy')
@@ -122,11 +144,19 @@ if __name__ == '__main__':
     else:
         model.compile(optimizer=SGD(lr=learning_rate), loss='binary_crossentropy')
     #print(model.summary())
-    
+
+
+    # pre-train的性能
+
     # Init performance
+    # 得到100个users的评估均值
     (hits, ndcgs) = evaluate_model(model, testRatings, testNegatives, topK, evaluation_threads)
     hr, ndcg = np.array(hits).mean(), np.array(ndcgs).mean()
+
+    # 两个embedding layer参数矩阵的2范数 的和
     mf_embedding_norm = np.linalg.norm(model.get_layer('user_embedding').get_weights())+np.linalg.norm(model.get_layer('item_embedding').get_weights())
+
+    # 预测层 GMF的参数矩阵的2范数 的和
     p_norm = np.linalg.norm(model.get_layer('prediction').get_weights()[0])
     print('Init: HR = %.4f, NDCG = %.4f\t MF_norm=%.1f, p_norm=%.2f' % 
           (hr, ndcg, mf_embedding_norm, p_norm))

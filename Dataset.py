@@ -1,3 +1,5 @@
+# -*- coding: utf-8 -*-
+
 '''
 Created on Aug 8, 2016
 
@@ -15,8 +17,14 @@ class Dataset(object):
         '''
         Constructor
         '''
+
+        # 训练矩阵，(user, item), (6040, 3706)，binary，item编号被shuffle了
         self.trainMatrix = self.load_rating_file_as_matrix(path + ".train.rating")
+
+        # 测试list，[[user, item], ...], 6040
         self.testRatings = self.load_rating_file_as_list(path + ".test.rating")
+
+        # 负样本，[[item1, item2, ..., item99], ...]，每个user有99个负样本
         self.testNegatives = self.load_negative_file(path + ".test.negative")
         assert len(self.testRatings) == len(self.testNegatives)
         
