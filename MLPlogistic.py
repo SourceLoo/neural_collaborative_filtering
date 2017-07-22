@@ -30,27 +30,34 @@ def init_normal(shape, name=None):
 def get_model(num_users, num_items, layers = [20,10], reg_layers=[0,0]):
     assert len(layers) == len(reg_layers)
     num_layer = len(layers) #Number of layers in the MLP
+    # MLP的层数
+
     # Input variables
     user_input = Input(shape=(1,), dtype='int32', name = 'user_input')
     item_input = Input(shape=(1,), dtype='int32', name = 'item_input')
 
+
+    # MLP 第0层，即embedding层；
     MLP_Embedding_User = Embedding(input_dim = num_users, output_dim = layers[0]/2, name = 'user_embedding',
                                   init = init_normal, W_regularizer = l2(reg_layers[0]), input_length=1)
     MLP_Embedding_Item = Embedding(input_dim = num_items, output_dim = layers[0]/2, name = 'item_embedding',
-                                  init = init_normal, W_regularizer = l2(reg_layers[0]), input_length=1)   
+                                  init = init_normal, W_regularizer = l2(reg_layers[0]), input_length=1)
     
     # Crucial to flatten an embedding vector!
     user_latent = Flatten()(MLP_Embedding_User(user_input))
     item_latent = Flatten()(MLP_Embedding_Item(item_input))
-    
+
+    # 将user item的vector拼接，而不是GMF中的点乘
     # The 0-th layer is the concatenation of embedding layers
     vector = merge([user_latent, item_latent], mode = 'concat')
     
     # MLP layers
+    # MLP 的 第 1,2,...层
     for idx in xrange(1, num_layer):
         layer = Dense(layers[idx], W_regularizer= l2(reg_layers[idx]), activation='relu', name = 'layer%d' %idx)
         vector = layer(vector)
-        
+
+    # 最后一层是sigmoid层
     # Final prediction layer
     prediction = Dense(1, activation='sigmoid', init='lecun_uniform', name = 'prediction')(vector)
     
@@ -110,7 +117,7 @@ if __name__ == '__main__':
     
     # Loading data
     t1 = time()
-    dataset = Dataset("Data/"+dataset_name)
+    dataset = Dataset("data/"+dataset_name)
     train, testRatings, testNegatives = dataset.trainMatrix, dataset.testRatings, dataset.testNegatives
     num_users, num_items = train.shape
     total_weight_per_user = train.nnz / float(num_users)

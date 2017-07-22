@@ -60,6 +60,8 @@ def get_model(num_users, num_items, mf_dim=10, layers=[10], reg_layers=[0], reg_
     # Concatenate MF and MLP parts
     #mf_vector = Lambda(lambda x: x * alpha)(mf_vector)
     #mlp_vector = Lambda(lambda x : x * (1-alpha))(mlp_vector)
+
+    # 最后将mf_vector 与 mlp_vector拼接即可
     predict_vector = merge([mf_vector, mlp_vector], mode = 'concat')
     if enable_dropout:
         predict_vector = Dropout(0.5)(predict_vector)
@@ -120,8 +122,9 @@ def get_train_instances(train, num_negatives, weight_negatives, user_weights):
 
 if __name__ == '__main__':
     dataset_name = "ml-1m"
-    mf_dim = 8    #embedding size
-    layers = eval("[16,8]")
+    mf_dim = 8    #embedding size 隐向量的长度
+
+    layers = eval("[16,8]")  # MLP 0,1的维度
     reg_layers = eval("[0,0]")
     reg_mf = 0
     num_negatives = 4   #number of negatives per positive instance
@@ -161,11 +164,13 @@ if __name__ == '__main__':
         
     # Loading data
     t1 = time()
-    dataset = Dataset("Data/"+dataset_name)
+    dataset = Dataset("data/"+dataset_name)
     train, testRatings, testNegatives = dataset.trainMatrix, dataset.testRatings, dataset.testNegatives
     num_users, num_items = train.shape
     total_weight_per_user = train.nnz / float(num_users)
     train_csr, user_weights = train.tocsr(), []
+
+
     for u in xrange(num_users):
         #user_weights.append(total_weight_per_user / float(train_csr.getrow(u).nnz))
         user_weights.append(1)
@@ -182,7 +187,12 @@ if __name__ == '__main__':
         model.compile(optimizer=Adam(lr=learning_rate), loss='binary_crossentropy')
     else:
         model.compile(optimizer=SGD(lr=learning_rate), loss='binary_crossentropy')
-    
+
+    # model为NeuMF融合的模型
+    # gmf_model为加载pretain的模型
+    # mlp_model为加载pretain的模型
+    # 现在，要将gmf与mlp的模型中参数get，再set到model中
+
     # Load pretrain model
     if mf_pretrain != '' and mlp_pretrain != '':
         gmf_model = GMFlogistic.get_model(num_users,num_items,mf_dim)

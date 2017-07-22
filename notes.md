@@ -50,3 +50,47 @@ https://stats.stackexchange.com/questions/153531/what-is-batch-size-in-neural-ne
 
 
 item的编码打乱了
+
+## MLP
+MLP层次结构：
+
+input: one hot encoding，user与item
+
+embedding: 将user与item的vector 拼接；MLP-0
+
+MLP-1,2,...
+
+prediction: 预测层sigmoid转为概率
+
+
+GMF层次结构：
+GMF是MLP的一个特例；
+input: one hot
+embedding: 将user于item的vector 点乘
+无MLP-1,2,...
+prediction:预测层，故维度与隐层维度相等
+
+
+## Parameter Setting
+layers = eval("[16,8]")  # MLP 0,1,2,3的维度
+
+设：embedding层为16，prediction层（MLP-X）为8，MLP-1层为8*2^(X-1)
+
+reg_layers = eval("[0,0]")  # MLP 每层的正则项系数
+
+reg_mf = 0  # MF embedding层的正则项系数
+
+reg_mf = 0
+
+num_negatives = 4  ## 负样本/正样本的比例
+
+weight_negatives = 1  # 正负样本权重
+
+
+learner = "Adam"  # 学习器
+
+learning_rate = 0.001;  # 学习速率 [0.0001 ,0.0005, 0.001, 0.005]
+
+batch_size = 256;  # [128, 256, 512, 1024]
+
+参数初始化  # N(0, 0.01)
