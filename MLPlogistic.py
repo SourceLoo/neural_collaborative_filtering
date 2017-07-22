@@ -88,7 +88,7 @@ def get_train_instances(train, num_negatives, weight_negatives, user_weights):
 
 if __name__ == '__main__':
     dataset_name = "ml-1m"
-    layers = eval("[16,8]")
+    layers = eval("[16,8]")  # 只有一个隐层，修改最后一位即为factor
     reg_layers = eval("[0,0]")
     num_negatives = 1   #number of negatives per positive instance
     weight_negatives = 1

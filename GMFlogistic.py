@@ -41,22 +41,22 @@ def get_model(num_users, num_items, latent_dim, regs=[0,0]):
     MF_Embedding_User = Embedding(input_dim = num_users, output_dim = latent_dim, name = 'user_embedding',
                                   init = init_normal, W_regularizer = l2(regs[0]), input_length=1)
     MF_Embedding_Item = Embedding(input_dim = num_items, output_dim = latent_dim, name = 'item_embedding',
-                                  init = init_normal, W_regularizer = l2(regs[1]), input_length=1)   
+                                  init = init_normal, W_regularizer = l2(regs[1]), input_length=1)
 
     # Crucial to flatten an embedding vector!
     user_latent = Flatten()(MF_Embedding_User(user_input))
     item_latent = Flatten()(MF_Embedding_Item(item_input))
 
     # 点积得到predict_vector
-    # Element-wise product of user and item embeddings 
+    # Element-wise product of user and item embeddings
     predict_vector = merge([user_latent, item_latent], mode = 'mul')
 
     # 最后一层 预测层，默认都是full-connect???
     # Final prediction layer
     #prediction = Lambda(lambda x: K.sigmoid(K.sum(x)), output_shape=(1,))(predict_vector)
     prediction = Dense(1, activation='sigmoid', init='lecun_uniform', name = 'prediction')(predict_vector)
-    
-    model = Model(input=[user_input, item_input], 
+
+    model = Model(input=[user_input, item_input],
                 output=prediction)
 
     return model
@@ -88,7 +88,7 @@ def get_train_instances(train, num_negatives, weight_negatives, user_weights):
 
 if __name__ == '__main__':
     dataset_name = "ml-1m"
-    num_factors = 10  # 隐空间的向量维数，embedding的向量维数
+    num_factors = 32  # 隐空间的向量维数，embedding的向量维数
 
     regs = [0,0]  # user 与 item的惩罚系数
     num_negatives = 1  # 一个positive对应几个negative
@@ -98,7 +98,7 @@ if __name__ == '__main__':
     epochs = 100
     batch_size = 256
     verbose = 1
-    
+
     if (len(sys.argv) > 3):
         dataset_name = sys.argv[1]
         num_factors = int(sys.argv[2])
@@ -108,14 +108,14 @@ if __name__ == '__main__':
         learner = sys.argv[6]
         learning_rate = float(sys.argv[7])
         epochs = int(sys.argv[8])
-        batch_size = int(sys.argv[9])   
+        batch_size = int(sys.argv[9])
         verbose = int(sys.argv[10])
-        
+
     topK = 10
     evaluation_threads = 1#mp.cpu_count()
     print("GMF-logistic (%s) Settings: num_factors=%d, batch_size=%d, learning_rate=%.1e, num_neg=%d, weight_neg=%.2f, regs=%s, epochs=%d, verbose=%d"
           %(learner, num_factors, batch_size, learning_rate, num_negatives, weight_negatives, regs, epochs, verbose))
-    
+
     # Loading data
     t1 = time()
     dataset = Dataset("Data/"+dataset_name)
@@ -129,13 +129,13 @@ if __name__ == '__main__':
     for u in xrange(num_users):
         user_weights.append(1)
 
-    print("Load data done [%.1f s]. #user=%d, #item=%d, #train=%d, #test=%d" 
+    print("Load data done [%.1f s]. #user=%d, #item=%d, #train=%d, #test=%d"
           %(time()-t1, num_users, num_items, train.nnz, len(testRatings)))
-    
+
     # Build model
     # loss都是用log loss，不同的是优化方法learner
     model = get_model(num_users, num_items, num_factors, regs)
-    if learner.lower() == "adagrad": 
+    if learner.lower() == "adagrad":
         model.compile(optimizer=Adagrad(lr=learning_rate), loss='binary_crossentropy')
     elif learner.lower() == "rmsprop":
         model.compile(optimizer=RMSprop(lr=learning_rate), loss='binary_crossentropy')
@@ -158,9 +158,9 @@ if __name__ == '__main__':
 
     # 预测层 GMF的参数矩阵的2范数 的和
     p_norm = np.linalg.norm(model.get_layer('prediction').get_weights()[0])
-    print('Init: HR = %.4f, NDCG = %.4f\t MF_norm=%.1f, p_norm=%.2f' % 
+    print('Init: HR = %.4f, NDCG = %.4f\t MF_norm=%.1f, p_norm=%.2f' %
           (hr, ndcg, mf_embedding_norm, p_norm))
-    
+
     # Train model
     loss_pre = sys.float_info.max
     best_hr, best_ndcg = 0, 0
@@ -168,20 +168,20 @@ if __name__ == '__main__':
         t1 = time()
         # Generate training instances
         user_input, item_input, labels, weights = get_train_instances(train, num_negatives, weight_negatives, user_weights)
-        
+
         # Training
         hist = model.fit([np.array(user_input), np.array(item_input)], #input
-                         np.array(labels), # labels 
+                         np.array(labels), # labels
                          batch_size=batch_size, nb_epoch=1, verbose=0, shuffle=True)
         t2 = time()
-        
+
         # Evaluation
         if epoch %verbose == 0:
             (hits, ndcgs) = evaluate_model(model, testRatings, testNegatives, topK, evaluation_threads)
             hr, ndcg, loss = np.array(hits).mean(), np.array(ndcgs).mean(), hist.history['loss'][0]
             mf_embedding_norm = np.linalg.norm(model.get_layer('user_embedding').get_weights())+np.linalg.norm(model.get_layer('item_embedding').get_weights())
             p_norm = np.linalg.norm(model.get_layer('prediction').get_weights()[0])
-            print('Iteration %d [%.1f s]: HR = %.4f, NDCG = %.4f, loss = %.4f [%.1f s] MF_norm=%.1f, p_norm=%.2f' 
+            print('Iteration %d [%.1f s]: HR = %.4f, NDCG = %.4f, loss = %.4f [%.1f s] MF_norm=%.1f, p_norm=%.2f'
                   % (epoch,  t2 - t1, hr, ndcg, loss, time()-t2, mf_embedding_norm, p_norm))
             if hr > best_hr:
                 best_hr = hr

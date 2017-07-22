@@ -68,13 +68,13 @@ GMF是MLP的一个特例；
 input: one hot
 embedding: 将user于item的vector 点乘
 无MLP-1,2,...
-prediction:预测层，故维度与隐层维度相等
+prediction:预测层，故维度为1，直接点乘结果作为输入
 
 
 ## Parameter Setting
 layers = eval("[16,8]")  # MLP 0,1,2,3的维度
 
-设：embedding层为16，prediction层（MLP-X）为8，MLP-1层为8*2^(X-1)
+设：embedding层为16，MLP-X层（最后一个隐层）为8，MLP-1层为8*2^(X-1)；prediction层为1
 
 reg_layers = eval("[0,0]")  # MLP 每层的正则项系数
 
@@ -94,3 +94,10 @@ learning_rate = 0.001;  # 学习速率 [0.0001 ,0.0005, 0.001, 0.005]
 batch_size = 256;  # [128, 256, 512, 1024]
 
 参数初始化  # N(0, 0.01)
+
+
+hxn方法：
+先单独训练GMF与MLP得到参数喂给NeuCF；
+
+新的方法：
+直接训练NeuCF；得到最好的喂给NeuCF；
